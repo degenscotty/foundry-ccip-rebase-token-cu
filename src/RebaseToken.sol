@@ -196,4 +196,14 @@ contract RebaseToken is ERC20 {
     function getUserInterestRate(address _user) external view returns (uint256) {
         return s_userInterestRate[_user];
     }
+
+    /**
+     * @notice Returns the principle balance of a user. Number of tokens that have been minted to the user,
+     *         not including any accrued interest since the last time the user interacted with the contract.
+     * @param _user The address of the user to get the principle balance for.
+     * @return The principle balance of the user.
+     */
+    function principleBalanceOf(address _user) external view returns (uint256) {
+        return super.balanceOf(_user);
+    }
 }
