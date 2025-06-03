@@ -55,4 +55,49 @@ contract RebaseTokenTest is Test {
         assertApproxEqAbs(endBalance - middleBalance, middleBalance - startBalance, 1);
         vm.stopPrank();
     }
+
+    function testRedeemStraightAway(uint256 amount) public {
+        amount = bound(amount, 1e5, type(uint96).max);
+        // 1. deposit
+        vm.startPrank(user);
+        vm.deal(user, amount);
+        vault.deposit{value: amount}();
+        assertEq(rebaseToken.balanceOf(user), amount);
+
+        // 2. redeem
+        vault.redeem(type(uint256).max);
+        assertEq(rebaseToken.balanceOf(user), 0, "Balance should be zero after redeeming all tokens");
+        assertEq(address(user).balance, amount, "User should receive the full amount of ETH back");
+        vm.stopPrank();
+    }
+
+    function testRedeemAfterTimeHasPassed(uint256 depositAmount, uint256 time) public {
+        time = bound(time, 1000, type(uint96).max); // this is a crazy number of years - 2^96 seconds is a lot
+        depositAmount = bound(depositAmount, 1e5, type(uint96).max); // this is an Ether value of max 2^78 which is crazy
+
+        // Deposit funds
+        vm.deal(user, depositAmount);
+        vm.prank(user);
+        vault.deposit{value: depositAmount}();
+
+        // check the balance has increased after some time has passed
+        vm.warp(time);
+
+        // Get balance after time has passed
+        uint256 balance = rebaseToken.balanceOf(user);
+
+        // Add rewards to the vault
+        vm.deal(owner, balance - depositAmount);
+        vm.prank(owner);
+        addRewardsToVault(balance - depositAmount);
+
+        // Redeem funds
+        vm.prank(user);
+        vault.redeem(balance);
+
+        uint256 ethBalance = address(user).balance;
+
+        assertEq(balance, ethBalance);
+        assertGt(balance, depositAmount);
+    }
 }
