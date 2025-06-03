@@ -181,4 +181,21 @@ contract RebaseTokenTest is Test {
         uint256 principleAmountAfterWarp = rebaseToken.principleBalanceOf(user);
         assertEq(principleAmountAfterWarp, amount);
     }
+
+    function testInterestRateCanOnlyDecrease() public {
+        // owner needs to set the new interest rate
+        // vm needs to expect a revert when the interest rate is set to a higher value
+        vm.startPrank(owner);
+        uint256 currentInterestRate = rebaseToken.getInterestRate();
+        uint256 newInterestRate = currentInterestRate + 1e10; // increase the interest rate by 10%
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("RebaseToken__InterestRateCanOnlyDecrease(uint256,uint256)")),
+                currentInterestRate,
+                newInterestRate
+            )
+        );
+        rebaseToken.setInterestRate(newInterestRate);
+        vm.stopPrank();
+    }
 }
