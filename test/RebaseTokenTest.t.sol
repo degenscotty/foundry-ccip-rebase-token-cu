@@ -167,4 +167,18 @@ contract RebaseTokenTest is Test {
         rebaseToken.setInterestRate(newInterestRate);
         vm.stopPrank();
     }
+
+    function testGetPrincipleAmount() public {
+        uint256 amount = 1e5;
+        vm.deal(user, amount);
+        vm.prank(user);
+        vault.deposit{value: amount}();
+        uint256 principleAmount = rebaseToken.principleBalanceOf(user);
+        assertEq(principleAmount, amount);
+
+        // check that the principle amount is the same after some time has passed
+        vm.warp(block.timestamp + 1 days);
+        uint256 principleAmountAfterWarp = rebaseToken.principleBalanceOf(user);
+        assertEq(principleAmountAfterWarp, amount);
+    }
 }
