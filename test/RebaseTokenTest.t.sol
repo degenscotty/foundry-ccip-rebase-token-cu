@@ -13,6 +13,7 @@ contract RebaseTokenTest is Test {
 
     address public owner = makeAddr("owner");
     address public user = makeAddr("user");
+    uint256 public SEND_VALUE = 1e5;
 
     function addRewardsToVault(uint256 amount) public {
         // send some rewards to the vault using the receive function
@@ -99,5 +100,71 @@ contract RebaseTokenTest is Test {
 
         assertEq(balance, ethBalance);
         assertGt(balance, depositAmount);
+    }
+
+    function testCannotCallMint() public {
+        // Deposit funds
+        vm.startPrank(user);
+        uint256 interestRate = rebaseToken.getInterestRate();
+        vm.expectRevert();
+        rebaseToken.mint(user, SEND_VALUE, interestRate);
+        vm.stopPrank();
+    }
+
+    function testCannotCallBurn() public {
+        // Deposit funds
+        vm.startPrank(user);
+        vm.expectRevert();
+        rebaseToken.burn(user, SEND_VALUE);
+        vm.stopPrank();
+    }
+
+    function testTransfer(uint256 amount, uint256 amountToSend) public {
+        amount = bound(amount, 1e5 + 1e3, type(uint96).max);
+        amountToSend = bound(amountToSend, 1e5, amount - 1e3);
+
+        vm.deal(user, amount);
+        vm.prank(user);
+        vault.deposit{value: amount}();
+
+        address userTwo = makeAddr("userTwo");
+        uint256 userBalance = rebaseToken.balanceOf(user);
+        uint256 userTwoBalance = rebaseToken.balanceOf(userTwo);
+        assertEq(userBalance, amount);
+        assertEq(userTwoBalance, 0);
+
+        // Update the interest rate so we can check the user interest rates are different after transferring.
+        vm.prank(owner);
+        rebaseToken.setInterestRate(4e10);
+
+        // Send half the balance to another user
+        vm.prank(user);
+        rebaseToken.transfer(userTwo, amountToSend);
+        uint256 userBalanceAfterTransfer = rebaseToken.balanceOf(user);
+        uint256 userTwoBalancAfterTransfer = rebaseToken.balanceOf(userTwo);
+        assertEq(userBalanceAfterTransfer, userBalance - amountToSend);
+        assertEq(userTwoBalancAfterTransfer, userTwoBalance + amountToSend);
+        // After some time has passed, check the balance of the two users has increased
+        vm.warp(block.timestamp + 1 days);
+        uint256 userBalanceAfterWarp = rebaseToken.balanceOf(user);
+        uint256 userTwoBalanceAfterWarp = rebaseToken.balanceOf(userTwo);
+        // check their interest rates are as expected
+        // since user two hadn't minted before, their interest rate should be the same as in the contract
+        uint256 userTwoInterestRate = rebaseToken.getUserInterestRate(userTwo);
+        assertEq(userTwoInterestRate, 5e10);
+        // since user had minted before, their interest rate should be the previous interest rate
+        uint256 userInterestRate = rebaseToken.getUserInterestRate(user);
+        assertEq(userInterestRate, 5e10);
+
+        assertGt(userBalanceAfterWarp, userBalanceAfterTransfer);
+        assertGt(userTwoBalanceAfterWarp, userTwoBalancAfterTransfer);
+    }
+
+    function testCannotSetInterestRate(uint256 newInterestRate) public {
+        // Update the interest rate
+        vm.startPrank(user);
+        vm.expectRevert();
+        rebaseToken.setInterestRate(newInterestRate);
+        vm.stopPrank();
     }
 }

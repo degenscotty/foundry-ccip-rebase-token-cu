@@ -64,7 +64,7 @@ contract Vault {
      */
     function deposit() external payable {
         if (msg.value < 0) revert Vault__NotEnoughETH();
-        i_rebaseToken.mint(msg.sender, msg.value);
+        i_rebaseToken.mint(msg.sender, msg.value, i_rebaseToken.getInterestRate());
         emit Deposit(msg.sender, msg.value);
     }
 
